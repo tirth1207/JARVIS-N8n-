@@ -1,6 +1,5 @@
 'use client';
 
-import { galaxyPreset } from "react-ai-orb";
 import { Orb } from "@/app/components/RadialWaveform"
 import { useState, useRef } from 'react';
 import { Input } from '@/components/ui/input';
@@ -78,7 +77,7 @@ export default function Home() {
     <main className="relative min-h-screen flex flex-col items-center justify-center space-y-6 p-6">
       <div className="grid grid-cols-1 gap-4">
         <div className="flex h-40 w-full items-center justify-center">
-          <Orb status={status}  {...galaxyPreset}/>
+          <Orb status={status}  />
         </div>
         <div className="flex items-center max-w-md w-full space-x-2">
           <Input
