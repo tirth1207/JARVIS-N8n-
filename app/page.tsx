@@ -1,24 +1,24 @@
 'use client';
 
+import { galaxyPreset } from "react-ai-orb";
+import { Orb } from "@/app/components/RadialWaveform"
 import { useState, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import AIOrb from '@/app/components/RadialWaveform';
-
+import AIOrbWave from '@/app/components/RadialWaveform';
 
 export default function Home() {
   const [message, setMessage] = useState('');
   const [response, setResponse] = useState('');
   const [loading, setLoading] = useState(false);
-  const [listening, setListening] = useState(false);
   const recognitionRef = useRef<any>(null);
-  const [speaking, setSpeaking] = useState(false);
+  const [status, setStatus] = useState<'speaking' | 'listening' | 'idle'>('idle');
 
   const speak = (text: string) => {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'en-US';
-    utterance.onstart = () => setSpeaking(true);
-    utterance.onend = () => setSpeaking(false);
+    utterance.onstart = () => setStatus('speaking');
+    utterance.onend = () => setStatus('idle');
     speechSynthesis.speak(utterance);
   };
 
@@ -34,7 +34,7 @@ export default function Home() {
 
       const data = await res.json();
       setResponse(data.response);
-      speak(data.response);
+      speak(data.response); // This will trigger status change to "speaking"
     } catch (err) {
       setResponse('❌ Error connecting to n8n.');
     } finally {
@@ -44,13 +44,13 @@ export default function Home() {
   };
 
   const handleMicClick = () => {
-    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
       alert('🎙️ Speech recognition is not supported in this browser.');
       return;
     }
-
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!recognitionRef.current) {
       const recognition = new SpeechRecognition();
@@ -61,24 +61,24 @@ export default function Home() {
       recognition.onresult = (event: any) => {
         const transcript = event.results[0][0].transcript;
         setMessage(transcript);
-        setListening(false);
+        setStatus('idle'); // Reset after recognition
       };
 
-      recognition.onerror = () => setListening(false);
-      recognition.onend = () => setListening(false);
+      recognition.onerror = () => setStatus('idle');
+      recognition.onend = () => setStatus('idle');
 
       recognitionRef.current = recognition;
     }
 
-    setListening(true);
+    setStatus('listening');
     recognitionRef.current.start();
   };
 
   return (
     <main className="relative min-h-screen flex flex-col items-center justify-center space-y-6 p-6">
       <div className="grid grid-cols-1 gap-4">
-        <div className="flex h-60 w-full items-center justify-center ">
-          <AIOrb isListening={listening} isSpeaking={speaking} />
+        <div className="flex h-40 w-full items-center justify-center">
+          <Orb status={status}  {...galaxyPreset}/>
         </div>
         <div className="flex items-center max-w-md w-full space-x-2">
           <Input
@@ -90,10 +90,10 @@ export default function Home() {
           <Button
             type="button"
             onClick={handleMicClick}
-            className={listening ? 'bg-green-500' : ''}
-            disabled={listening}
+            className={status === 'listening' ? 'bg-green-500' : ''}
+            disabled={status === 'listening'}
           >
-            {listening ? '🎙️ Listening...' : '🎤'}
+            {status === 'listening' ? '🎙️ Listening...' : '🎤'}
           </Button>
         </div>
       </div>

@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 export async function POST(req: Request) {
   const { message } = await req.json();
 
-  const webhookURL = 'https://knowing-allowed-cheetah.ngrok-free.app/webhook/f3c37cd3-bd6c-4440-b2f3-b83a8629591a';
+  const webhookURL = process.env.WEBHOOK_URL;
 
   try {
     const n8nRes = await fetch(webhookURL, {

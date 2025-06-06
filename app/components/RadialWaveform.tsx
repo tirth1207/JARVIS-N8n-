@@ -1,138 +1,127 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo } from "react";
+import "./styles.css";
+import { SvgElements } from "../SvgElements/SvgElements";
+import { colorPalettes } from "../colorPalettes";
+import {
+  baseOrbSize,
+  baseShapeSize,
+  defaultAnimationSpeedBase,
+  defaultAnimationSpeedHue,
+  defaultBlobAOpacity,
+  defaultBlobBOpacity,
+  defaultHueRotation,
+  defaultMainOrbHueAnimation,
+  defaultNoShadowValue,
+  defaultSize,
+} from "../constants";
+import { ReactAIOrbProps } from "../types";
 
-function RandomColor() {
-    const [color, setColor] = useState('white');
-
-    useEffect(() => {
-      const generateRandomColor = () => {
-        const r = Math.floor(Math.random() * 256);
-        const g = Math.floor(Math.random() * 256);
-        const b = Math.floor(Math.random() * 256);
-        setColor(`rgb(${r}, ${g}, ${b})`);
-      };
-      generateRandomColor();
-    }, []);
-
-    return color;
-}
-
-const AIOrb = ({ isListening = false, isSpeaking = false }) => {
-  const [audioLevel, setAudioLevel] = useState(0);
-  const [randomSeed, setRandomSeed] = useState(0);
-    
-  // Simulate audio level changes and random pattern updates
-  useEffect(() => {
-    let interval;
-    if (isListening || isSpeaking) {
-      interval = setInterval(() => {
-        setAudioLevel(Math.random() * 100);
-        setRandomSeed(Math.random() * 360);
-      }, 200);
-    } else {
-      setAudioLevel(0);
-      const slowInterval = setInterval(() => {
-        setRandomSeed(Math.random() * 360);
-      }, 1000);
-      return () => clearInterval(slowInterval);
+export const Orb = ({
+  palette = colorPalettes.cosmicNebula,
+  size = defaultSize,
+  animationSpeedBase = defaultAnimationSpeedBase,
+  animationSpeedHue = defaultAnimationSpeedHue,
+  hueRotation = defaultHueRotation,
+  mainOrbHueAnimation = defaultMainOrbHueAnimation,
+  blobAOpacity = defaultBlobAOpacity,
+  blobBOpacity = defaultBlobBOpacity,
+  noShadow = defaultNoShadowValue,
+  status = 'idle', // <=== NEW
+}: ReactAIOrbProps & { status: 'speaking' | 'listening' | 'idle' }) => {
+  const cssVariables = useMemo(() => {
+    let dynamicRotationSpeed = 1 / (animationSpeedBase * 0.5);
+    let dynamicHueSpeed = 1 / (animationSpeedHue * 0.5);
+    let dynamicBlobAOpacity = blobAOpacity;
+    let dynamicBlobBOpacity = blobBOpacity;
+    let dynamicShadow = "";
+  
+    if (!noShadow) {
+      if (status === "speaking") {
+        dynamicRotationSpeed *= 3;
+        dynamicHueSpeed *= 3;
+        dynamicBlobAOpacity = 0.8;
+        dynamicBlobBOpacity = 0.8;
+      } else if (status === "listening") {
+        dynamicRotationSpeed *= 1.5;
+        dynamicHueSpeed *= 2;
+        dynamicBlobAOpacity = 0.6;
+        dynamicBlobBOpacity = 0.6;
+      } else {
+        dynamicRotationSpeed *= 0.5;
+        dynamicHueSpeed *= 0.5;
+        dynamicBlobAOpacity = 0.3;
+        dynamicBlobBOpacity = 0.3;
+      }
+  
+      dynamicShadow = `
+        var(--shadow-color-1) 0px 4px 6px 0px,
+        var(--shadow-color-2) 0px 5px 10px 0px,
+        var(--shadow-color-3) 0px 0px 1px 0px inset,
+        var(--shadow-color-4) 0px 1px 7px 0px inset
+      `;
     }
-    return () => clearInterval(interval);
-  }, [isListening, isSpeaking]);
-  // Two-color palette - you can customize these
-  const color1 = RandomColor(); // emerald green
-  const color2 = RandomColor(); // pink
+  
+    return {
+      "--react-ai-orb-size": `${size * baseOrbSize}px`,
+      "--shapes-size": `${size * baseShapeSize}px`,
+      "--main-bg-start": palette.mainBgStart,
+      "--main-bg-end": palette.mainBgEnd,
+      "--shadow-color-1": palette.shadowColor1,
+      "--shadow-color-2": palette.shadowColor2,
+      "--shadow-color-3": palette.shadowColor3,
+      "--shadow-color-4": palette.shadowColor4,
+      "--main-shadow": noShadow ? "none" : dynamicShadow,
+      "--shape-a-start": palette.shapeAStart,
+      "--shape-a-end": palette.shapeAEnd,
+      "--shape-b-start": palette.shapeBStart,
+      "--shape-b-middle": palette.shapeBMiddle,
+      "--shape-b-end": palette.shapeBEnd,
+      "--shape-c-start": palette.shapeCStart,
+      "--shape-c-middle": palette.shapeCMiddle,
+      "--shape-c-end": palette.shapeCEnd,
+      "--shape-d-start": palette.shapeDStart,
+      "--shape-d-middle": palette.shapeDMiddle,
+      "--shape-d-end": palette.shapeDEnd,
+      "--blob-a-opacity": dynamicBlobAOpacity,
+      "--blob-b-opacity": dynamicBlobBOpacity,
+      "--animation-rotation-speed-base": `${dynamicRotationSpeed}s`,
+      "--animation-hue-speed-base": `${dynamicHueSpeed}s`,
+      "--hue-rotation": `${hueRotation}deg`,
+      "--main-hue-animation": mainOrbHueAnimation
+        ? "hueShift var(--animation-hue-speed-base) linear infinite"
+        : "none",
+    } as React.CSSProperties;
+  }, [
+    palette,
+    size,
+    animationSpeedBase,
+    animationSpeedHue,
+    hueRotation,
+    mainOrbHueAnimation,
+    blobAOpacity,
+    blobBOpacity,
+    noShadow,
+    status, // <=== NEW DEPENDENCY
+  ]);
+  
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center">
-      {/* Outer glow ring */}
-      <div 
-        className={`absolute inset-0 m-auto w-52 h-52 rounded-full transition-all duration-3000 `}
-        style={{
-          transform: `scale(${1 + (audioLevel / 400)})`,
-          boxShadow: `0 0 ${20 + audioLevel/5}px ${isListening || isSpeaking ? 'rgba(16, 185, 129, 0.6)' : 'rgba(16, 185, 129, 0.3)'}`,
-        }}
-      />
-      
-      {/* Main orb */}
-      <div 
-        className="relative w-50 h-50 rounded-full overflow-hidden"
-      >
-        {/* Base gradient background */}
-        <div 
-          className="absolute inset-0"
-          style={{
-            background: `conic-gradient(
-              from ${Date.now() * 0.001 + randomSeed}deg,
-              ${color1} 0%,
-              ${color2} 50%,
-              ${color1} 100%
-            )`,
-            animation: (isListening || isSpeaking) ? 'spin 3s linear infinite' : 'spin 8s linear infinite',
-          }}
-        />
-        
-        {/* Random organic shapes overlay */}
-        <div className="absolute inset-0">
-          {[...Array(6)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute rounded-full"
-              style={{
-                width: `${30 + (randomSeed + i * 20) % 40}%`,
-                height: `${30 + (randomSeed + i * 15) % 40}%`,
-                background: `radial-gradient(circle, ${i % 2 === 0 ? color1 : color2}66, transparent 70%)`,
-                left: `${10 + (randomSeed + i * 30) % 60}%`,
-                top: `${10 + (randomSeed + i * 25) % 60}%`,
-                transform: `rotate(${i * 60 + randomSeed}deg) scale(${0.7 + (audioLevel / 300)})`,
-                opacity: (isListening || isSpeaking) ? 0.8 : 0.5,
-                transition: 'all 0.3s ease-out',
-              }}
-            />
-          ))}
-        </div>
-        
-        {/* Flowing liquid effect */}
-        <div 
-          className="absolute inset-0 rounded-full"
-          style={{
-            background: `radial-gradient(
-              ellipse ${60 + audioLevel/3}% ${40 + audioLevel/4}% at ${30 + (randomSeed % 40)}% ${30 + ((randomSeed * 1.5) % 40)}%,
-              ${color1}44 0%,
-              transparent 50%
-            ), radial-gradient(
-              ellipse ${40 + audioLevel/4}% ${60 + audioLevel/3}% at ${70 - (randomSeed % 40)}% ${70 - ((randomSeed * 1.2) % 40)}%,
-              ${color2}44 0%,
-              transparent 50%
-            )`,
-            transform: `rotate(${-randomSeed}deg)`,
-            transition: 'all 0.5s ease-out',
-          }}
-        />
-        
-        {/* Dynamic noise texture */}
-        <div 
-          className="absolute inset-0 rounded-full opacity-30"
-          style={{
-            background: `repeating-conic-gradient(
-              from ${randomSeed}deg,
-              transparent 0deg,
-              ${color1}22 ${2 + (audioLevel/50)}deg,
-              transparent ${4 + (audioLevel/25)}deg,
-              ${color2}22 ${6 + (audioLevel/30)}deg,
-              transparent ${8 + (audioLevel/40)}deg
-            )`,
-            transform: `scale(${0.9 + (audioLevel / 500)})`,
-          }}
-        />
+    <div
+      style={{
+        ...cssVariables,
+      }}
+    >
+      <div className="orb-main">
+        <div className="glass loc-glass" />
+        <div className="shape-a loc-a" />
+        <div className="shape-b loc-b" />
+        <div className="shape-c loc-c" />
+        <div className="shape-d loc-d" />
+
+        <SvgElements color1={palette.mainBgStart} color2={palette.mainBgEnd} />
       </div>
-      
-      <style jsx>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 };
 
-export default AIOrb;
+export default Orb;
