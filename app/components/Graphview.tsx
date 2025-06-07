@@ -100,7 +100,7 @@ interface GraphNode extends Node {
   fixed?: boolean;
 }
 
-interface GraphEdge extends Edge {}
+type GraphEdge = Edge<any>;
 
 // Physics simulation class
 class PhysicsSimulation {
@@ -299,7 +299,7 @@ interface NoteGraphProps {
 
 export default function NoteGraph({ refresh, setRefresh }: NoteGraphProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState<GraphNode[]>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<GraphEdge[]>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<GraphEdge>([]);
   const [selectedNodes, setSelectedNodes] = useState<Set<string>>(new Set());
   const physicsRef = useRef<PhysicsSimulation | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -473,15 +473,7 @@ export default function NoteGraph({ refresh, setRefresh }: NoteGraphProps) {
           nodeColor="#4b5563"
           maskColor="rgba(0, 0, 0, 0.8)"
         />
-        <Controls 
-          style={{
-            button: {
-              backgroundColor: '#374151',
-              border: '1px solid #4b5563',
-              color: '#f9fafb'
-            }
-          }}
-        />
+        <Controls />
         <Background 
           variant={BackgroundVariant.Dots}
           gap={20} 
