@@ -10,6 +10,10 @@ import ReactFlow, {
   MarkerType,
   Handle,
   Position,
+  Node,
+  Edge,
+  NodeProps,
+  BackgroundVariant,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -30,9 +34,9 @@ const pastelColors = [
 ];
 
 // Function to get consistent color for a node
-const getNodeColor = (nodeId) => {
+const getNodeColor = (nodeId: string): string => {
   // Use node ID to get consistent color
-  const hash = nodeId.split('').reduce((a, b) => {
+  const hash = nodeId.split('').reduce((a: number, b: string) => {
     a = ((a << 5) - a) + b.charCodeAt(0);
     return a & a;
   }, 0);
@@ -40,7 +44,7 @@ const getNodeColor = (nodeId) => {
 };
 
 // Custom node component for Obsidian-style circular nodes
-const ObsidianNode = ({ data, selected, id }) => {
+const ObsidianNode: React.FC<NodeProps> = ({ data, selected, id }) => {
   const nodeColor = getNodeColor(id);
   
   return (
@@ -87,9 +91,31 @@ const nodeTypes = {
   obsidianNode: ObsidianNode,
 };
 
+// Types for node and edge
+interface GraphNode extends Node {
+  vx?: number;
+  vy?: number;
+  fx?: number;
+  fy?: number;
+  fixed?: boolean;
+}
+
+interface GraphEdge extends Edge {}
+
 // Physics simulation class
 class PhysicsSimulation {
-  constructor(nodes, edges, onUpdate) {
+  nodes: Map<string, GraphNode>;
+  edges: GraphEdge[];
+  onUpdate: (nodes: GraphNode[]) => void;
+  isRunning: boolean;
+  animationFrame: number | null;
+  repulsionStrength: number;
+  attractionStrength: number;
+  dampening: number;
+  minDistance: number;
+  maxDistance: number;
+
+  constructor(nodes: GraphNode[], edges: GraphEdge[], onUpdate: (nodes: GraphNode[]) => void) {
     this.nodes = new Map();
     this.edges = edges;
     this.onUpdate = onUpdate;
@@ -104,7 +130,7 @@ class PhysicsSimulation {
     this.maxDistance = 300;
     
     // Initialize nodes with physics properties
-    nodes.forEach(node => {
+    nodes.forEach((node: GraphNode) => {
       this.nodes.set(node.id, {
         ...node,
         vx: 0,
@@ -116,8 +142,8 @@ class PhysicsSimulation {
     });
   }
 
-  updateNodes(newNodes) {
-    newNodes.forEach(node => {
+  updateNodes(newNodes: GraphNode[]) {
+    newNodes.forEach((node: GraphNode) => {
       const existing = this.nodes.get(node.id);
       if (existing) {
         this.nodes.set(node.id, {
@@ -143,7 +169,7 @@ class PhysicsSimulation {
     const nodeArray = Array.from(this.nodes.values());
     
     // Reset forces
-    nodeArray.forEach(node => {
+    nodeArray.forEach((node) => {
       node.fx = 0;
       node.fy = 0;
     });
@@ -163,16 +189,16 @@ class PhysicsSimulation {
           const fx = (dx / distance) * force;
           const fy = (dy / distance) * force;
           
-          nodeA.fx -= fx;
-          nodeA.fy -= fy;
-          nodeB.fx += fx;
-          nodeB.fy += fy;
+          nodeA.fx! -= fx;
+          nodeA.fy! -= fy;
+          nodeB.fx! += fx;
+          nodeB.fy! += fy;
         }
       }
     }
 
     // Attraction forces (connected nodes pull toward each other)
-    this.edges.forEach(edge => {
+    this.edges.forEach((edge) => {
       const sourceNode = this.nodes.get(edge.source);
       const targetNode = this.nodes.get(edge.target);
       
@@ -186,10 +212,10 @@ class PhysicsSimulation {
         const fx = (dx / distance) * force;
         const fy = (dy / distance) * force;
         
-        sourceNode.fx += fx;
-        sourceNode.fy += fy;
-        targetNode.fx -= fx;
-        targetNode.fy -= fy;
+        sourceNode.fx! += fx;
+        sourceNode.fy! += fy;
+        targetNode.fx! -= fx;
+        targetNode.fy! -= fy;
       }
     });
   }
@@ -198,18 +224,18 @@ class PhysicsSimulation {
     const nodeArray = Array.from(this.nodes.values());
     let maxMovement = 0;
 
-    nodeArray.forEach(node => {
+    nodeArray.forEach((node) => {
       if (!node.fixed) {
         // Update velocity
-        node.vx = (node.vx + node.fx) * this.dampening;
-        node.vy = (node.vy + node.fy) * this.dampening;
+        node.vx = (node.vx! + node.fx!) * this.dampening;
+        node.vy = (node.vy! + node.fy!) * this.dampening;
         
         // Update position
-        node.position.x += node.vx;
-        node.position.y += node.vy;
+        node.position.x += node.vx!;
+        node.position.y += node.vy!;
         
         // Track maximum movement for convergence detection
-        const movement = Math.abs(node.vx) + Math.abs(node.vy);
+        const movement = Math.abs(node.vx!) + Math.abs(node.vy!);
         maxMovement = Math.max(maxMovement, movement);
       }
     });
@@ -222,7 +248,7 @@ class PhysicsSimulation {
     const movement = this.updatePositions();
     
     // Update React Flow nodes
-    const updatedNodes = Array.from(this.nodes.values()).map(node => ({
+    const updatedNodes = Array.from(this.nodes.values()).map((node) => ({
       ...node,
       position: { ...node.position }
     }));
@@ -231,7 +257,7 @@ class PhysicsSimulation {
     
     // Continue simulation if there's significant movement
     if (movement > 0.1 && this.isRunning) {
-      this.animationFrame = requestAnimationFrame(() => this.step());
+      this.animationFrame = window.requestAnimationFrame(() => this.step());
     } else {
       this.isRunning = false;
     }
@@ -247,11 +273,11 @@ class PhysicsSimulation {
   stop() {
     this.isRunning = false;
     if (this.animationFrame) {
-      cancelAnimationFrame(this.animationFrame);
+      window.cancelAnimationFrame(this.animationFrame);
     }
   }
 
-  setNodeFixed(nodeId, fixed, position) {
+  setNodeFixed(nodeId: string, fixed: boolean, position?: { x: number; y: number }) {
     const node = this.nodes.get(nodeId);
     if (node) {
       node.fixed = fixed;
@@ -266,41 +292,48 @@ class PhysicsSimulation {
   }
 }
 
-export default function NoteGraph({ refresh, setRefresh }) {
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [selectedNodes, setSelectedNodes] = useState(new Set());
-  const physicsRef = useRef(null);
+interface NoteGraphProps {
+  refresh: boolean;
+  setRefresh: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+export default function NoteGraph({ refresh, setRefresh }: NoteGraphProps) {
+  const [nodes, setNodes, onNodesChange] = useNodesState<GraphNode[]>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<GraphEdge[]>([]);
+  const [selectedNodes, setSelectedNodes] = useState<Set<string>>(new Set());
+  const physicsRef = useRef<PhysicsSimulation | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   
-  const onSelectionChange = useCallback((elements) => {
+  const onSelectionChange = useCallback((elements: { nodes?: GraphNode[] }) => {
     const selectedNodeIds = new Set(
-      elements.nodes?.map(node => node.id) || []
+      elements.nodes?.map((node) => node.id) || []
     );
     setSelectedNodes(selectedNodeIds);
   }, []);
 
   // Handle node drag
-  const onNodeDragStart = useCallback((event, node) => {
+  const onNodeDragStart = useCallback((event: React.MouseEvent, node: GraphNode) => {
     setIsDragging(true);
     if (physicsRef.current) {
       physicsRef.current.setNodeFixed(node.id, true, node.position);
     }
   }, []);
 
-  const onNodeDrag = useCallback((event, node) => {
+  const onNodeDrag = useCallback((event: React.MouseEvent, node: GraphNode) => {
     if (physicsRef.current) {
       physicsRef.current.setNodeFixed(node.id, true, node.position);
     }
   }, []);
 
-  const onNodeDragStop = useCallback((event, node) => {
+  const onNodeDragStop = useCallback((event: React.MouseEvent, node: GraphNode) => {
     setIsDragging(false);
     if (physicsRef.current) {
       // Keep node fixed for a moment, then release
       setTimeout(() => {
-        physicsRef.current.setNodeFixed(node.id, false);
-        physicsRef.current.start();
+        if (physicsRef.current) {
+          physicsRef.current.setNodeFixed(node.id, false);
+          physicsRef.current.start();
+        }
       }, 1000);
     }
   }, []);
@@ -315,14 +348,16 @@ export default function NoteGraph({ refresh, setRefresh }) {
       physicsRef.current = new PhysicsSimulation(
         nodes,
         edges,
-        (updatedNodes) => {
+        (updatedNodes: GraphNode[]) => {
           setNodes(updatedNodes);
         }
       );
       
       // Start physics simulation
       setTimeout(() => {
-        physicsRef.current.start();
+        if (physicsRef.current) {
+          physicsRef.current.start();
+        }
       }, 100);
     }
 
@@ -357,7 +392,7 @@ export default function NoteGraph({ refresh, setRefresh }) {
       }
 
       // Create nodes with initial random positions
-      const nodeData = notes.map((note, index) => {
+      const nodeData: GraphNode[] = notes.map((note: any, index: number) => {
         const angle = (index * 2 * Math.PI) / notes.length;
         const radius = 200;
         return {
@@ -376,7 +411,7 @@ export default function NoteGraph({ refresh, setRefresh }) {
       });
 
       // Create edges with Obsidian-style connections
-      const edgeData = links.map(link => ({
+      const edgeData: GraphEdge[] = links.map((link: any) => ({
         id: `${link.note_id}-${link.linked_note_id}`,
         source: link.note_id.toString(),
         target: link.linked_note_id.toString(),
@@ -448,7 +483,7 @@ export default function NoteGraph({ refresh, setRefresh }) {
           }}
         />
         <Background 
-          variant="dots" 
+          variant={BackgroundVariant.Dots}
           gap={20} 
           size={1} 
           color="#374151"
